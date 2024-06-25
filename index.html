@@ -1,0 +1,31 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Welcome to the Flask App</h1>
+    <form action="/submit_comment" method="post">
+        <input type="text" name="author" placeholder="Your name">
+        <textarea name="content" placeholder="Your comment"></textarea>
+        <button type="submit">Submit Comment</button>
+    </form>
+
+    <form action="/search" method="post">
+        <input type="text" name="q" placeholder="Search...">
+        <button type="submit">Search</button>
+    </form>
+
+    <h2>Comments:</h2>
+    {% for comment in comments %}
+        <div>
+            <p><strong>{{ comment.author }}</strong> at {{ comment.timestamp }}:</p>
+            <p>{{ comment.content }}</p>
+        </div>
+    {% endfor %}
+</body>
+</html>
