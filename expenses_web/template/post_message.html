@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Post a Message</title>
+</head>
+<body>
+    <h1>Post a Message</h1>
+    <form method="post">
+        <input type="text" name="description" placeholder="Description" required>
+        <input type="number" step="0.01" name="amount" placeholder="Amount" required>
+        <input type="date" name="date" required>
+        <button type="submit">Submit</button>
+    </form>
+    <a href="{{ url_for('index') }}">Back to Home</a>
+</body>
+</html>
