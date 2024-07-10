@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Number Roller</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        .buttons-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .number-button {
+            padding: 10px 20px;
+            font-size: 1em;
+            margin: 0 5px;
+            cursor: pointer;
+        }
+        .falling-number {
+            position: absolute;
+            font-size: 2em;
+            animation: fall 2s linear;
+        }
+        @keyframes fall {
+            0% { top: -50px; }
+            100% { top: calc(100vh - 50px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="buttons-container">
+        <button class="number-button" onclick="fallNumber(0)">0</button>
+        <button class="number-button" onclick="fallNumber(1)">1</button>
+        <button class="number-button" onclick="fallNumber(2)">2</button>
+        <button class="number-button" onclick="fallNumber(3)">3</button>
+        <button class="number-button" onclick="fallNumber(4)">4</button>
+        <button class="number-button" onclick="fallNumber(5)">5</button>
+        <button class="number-button" onclick="fallNumber(6)">6</button>
+        <button class="number-button" onclick="fallNumber(7)">7</button>
+        <button class="number-button" onclick="fallNumber(8)">8</button>
+        <button class="number-button" onclick="fallNumber(9)">9</button>
+    </div>
+
+    <script>
+        function fallNumber(number) {
+            const numberElement = document.createElement('div');
+            numberElement.classList.add('falling-number');
+            numberElement.innerText = number;
+            numberElement.style.left = Math.random() * window.innerWidth + 'px';
+            document.body.appendChild(numberElement);
+
+            numberElement.addEventListener('animationend', () => {
+                numberElement.remove();
+            });
+        }
+    </script>
+</body>
+</html>
