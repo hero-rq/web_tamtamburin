@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dice Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        #dice {
+            font-size: 100px;
+            margin: 20px;
+        }
+        #rollButton {
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dice Simulator</h1>
+    <div id="dice">🎲</div>
+    <button id="rollButton">Roll the Dice</button>
+
+    <script>
+        const diceSymbols = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+
+        document.getElementById('rollButton').addEventListener('click', function() {
+            const randomIndex = Math.floor(Math.random() * 6);
+            document.getElementById('dice').innerText = diceSymbols[randomIndex];
+        });
+    </script>
+</body>
+</html>
