@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hangul Keyboard IME</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    #output { border: 1px solid #ccc; padding: 10px; width: 100%; min-height: 150px; }
+    #composing { font-size: 1.5em; margin-top: 10px; padding: 5px; border: 1px solid #aaa; min-height: 30px; }
+    p { max-width: 600px; }
+  </style>
+</head>
+<body>
+  <h1>Hangul Keyboard IME</h1>
+  <p>Type on your English keyboard below. The text will be converted into Hangul syllables following the composition rules (initial consonant + medial vowel + optional final consonant).</p>
+  <p><strong>Output:</strong></p>
+  <div id="output"></div>
+  <p><strong>Current Composition:</strong></p>
+  <div id="composing"></div>
+
+  <script>
+    /***** Data Structures for Hangul Composition *****/
+    // The lists of jamo (ordered as used for Unicode Hangul Syllable Composition)
+    const initials = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+    const medials  = ['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ'];
+    const finals   = ['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+
+    // Map from English-key (Dubeolsik) to Hangul jamo.
+    const keyMap = {
+      // Consonants
+      'r': { type: 'consonant', jamo: 'ㄱ' },
+      'R': { type: 'consonant', jamo: 'ㄲ' },
+      's': { type: 'consonant', jamo: 'ㄴ' },
+      'e': { type: 'consonant', jamo: 'ㄷ' },
+      'E': { type: 'consonant', jamo: 'ㄸ' },
+      'f': { type: 'consonant', jamo: 'ㄹ' },
+      'a': { type: 'consonant', jamo: 'ㅁ' },
+      'q': { type: 'consonant', jamo: 'ㅂ' },
+      'Q': { type: 'consonant', jamo: 'ㅃ' },
+      't': { type: 'consonant', jamo: 'ㅅ' },
+      'T': { type: 'consonant', jamo: 'ㅆ' },
+      'd': { type: 'consonant', jamo: 'ㅇ' },
+      'w': { type: 'consonant', jamo: 'ㅈ' },
+      'W': { type: 'consonant', jamo: 'ㅉ' },
+      'c': { type: 'consonant', jamo: 'ㅊ' },
+      'z': { type: 'consonant', jamo: 'ㅋ' },
+      'x': { type: 'consonant', jamo: 'ㅌ' },
+      'v': { type: 'consonant', jamo: 'ㅍ' },
+      'g': { type: 'consonant', jamo: 'ㅎ' },
+      // Vowels
+      'k': { type: 'vowel', jamo: 'ㅏ' },
+      'o': { type: 'vowel', jamo: 'ㅐ' },
+      'i': { type: 'vowel', jamo: 'ㅑ' },
+      // (Skipping shift variant for ㅒ)
+      'j': { type: 'vowel', jamo: 'ㅓ' },
+      'p': { type: 'vowel', jamo: 'ㅔ' },
+      'u': { type: 'vowel', jamo: 'ㅕ' },
+      'P': { type: 'vowel', jamo: 'ㅖ' },
+      'h': { type: 'vowel', jamo: 'ㅗ' },
+      'y': { type: 'vowel', jamo: 'ㅛ' },
+      'n': { type: 'vowel', jamo: 'ㅜ' },
+      'b': { type: 'vowel', jamo: 'ㅠ' },
+      'm': { type: 'vowel', jamo: 'ㅡ' },
+      'l': { type: 'vowel', jamo: 'ㅣ' }
+    };
+
+    // Compound vowels: if a vowel is already present, check if the new vowel can combine.
+    const compoundVowels = {
+      'ㅗ': { 'ㅏ': 'ㅘ', 'ㅐ': 'ㅙ', 'ㅣ': 'ㅚ' },
+      'ㅜ': { 'ㅓ': 'ㅝ', 'ㅔ': 'ㅞ', 'ㅣ': 'ㅟ' },
+      'ㅡ': { 'ㅣ': 'ㅢ' }
+    };
+
+    // Compound final consonants (for when adding a second consonant after a final)
+    const compoundFinals = {
+      'ㄱ': { 'ㅅ': 'ㄳ' },
+      'ㄴ': { 'ㅈ': 'ㄵ', 'ㅎ': 'ㄶ' },
+      'ㄹ': { 'ㄱ': 'ㄺ', 'ㅁ': 'ㄻ', 'ㅂ': 'ㄼ', 'ㅅ': 'ㄽ', 'ㅌ': 'ㄾ', 'ㅍ': 'ㄿ', 'ㅎ': 'ㅀ' },
+      'ㅂ': { 'ㅅ': 'ㅄ' }
+    };
+
+    // For backspace handling when a compound final is present:
+    const decomposeFinal = {
+      'ㄳ': ['ㄱ', 'ㅅ'],
+      'ㄵ': ['ㄴ', 'ㅈ'],
+      'ㄶ': ['ㄴ', 'ㅎ'],
+      'ㄺ': ['ㄹ', 'ㄱ'],
+      'ㄻ': ['ㄹ', 'ㅁ'],
+      'ㄼ': ['ㄹ', 'ㅂ'],
+      'ㄽ': ['ㄹ', 'ㅅ'],
+      'ㄾ': ['ㄹ', 'ㅌ'],
+      'ㄿ': ['ㄹ', 'ㅍ'],
+      'ㅀ': ['ㄹ', 'ㅎ'],
+      'ㅄ': ['ㅂ', 'ㅅ']
+    };
+
+    /***** State Variables *****/
+    // currentSyllable holds the parts that are being composed.
+    let currentSyllable = { initial: "", medial: "", final: "" };
+    // composedText holds committed syllables (or other characters).
+    let composedText = "";
+
+    // Display elements
+    const outputDiv = document.getElementById("output");
+    const composingDiv = document.getElementById("composing");
+
+    // Update the on-screen display
+    function updateDisplay() {
+      outputDiv.textContent = composedText;
+      composingDiv.textContent = composeSyllable(currentSyllable);
+    }
+
+    // Given the current parts, compose a Hangul syllable using the Unicode formula.
+    function composeSyllable(syllable) {
+      if (syllable.initial && syllable.medial) {
+        let initIndex = initials.indexOf(syllable.initial);
+        let medIndex = medials.indexOf(syllable.medial);
+        let finIndex = finals.indexOf(syllable.final);
+        if (initIndex === -1 || medIndex === -1 || finIndex === -1) {
+          // Fallback: if any part is not found, simply join the parts.
+          return syllable.initial + syllable.medial + syllable.final;
+        }
+        return String.fromCharCode(0xAC00 + (initIndex * 588) + (medIndex * 28) + finIndex);
+      } else {
+        // If incomplete, simply show the collected jamo.
+        return syllable.initial + syllable.medial + syllable.final;
+      }
+    }
+
+    // Commit the current syllable (flush it to composedText) and reset.
+    function commitSyllable() {
+      composedText += composeSyllable(currentSyllable);
+      currentSyllable = { initial: "", medial: "", final: "" };
+    }
+
+    /***** Key Event Handling *****/
+    document.addEventListener("keydown", function(e) {
+      // --- Backspace Handling ---
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        if (currentSyllable.final) {
+          // If the final is compound, remove its last component if possible.
+          if (currentSyllable.final.length === 2 && decomposeFinal[currentSyllable.final]) {
+            currentSyllable.final = decomposeFinal[currentSyllable.final][0];
+          } else {
+            currentSyllable.final = "";
+          }
+        } else if (currentSyllable.medial) {
+          currentSyllable.medial = "";
+        } else if (currentSyllable.initial) {
+          currentSyllable.initial = "";
+        } else {
+          // If nothing is being composed, remove the last committed character.
+          composedText = composedText.slice(0, -1);
+        }
+        updateDisplay();
+        return;
+      }
+
+      // --- Space Handling ---
+      if (e.key === " ") {
+        e.preventDefault();
+        commitSyllable();
+        composedText += " ";
+        updateDisplay();
+        return;
+      }
+
+      // Look up the mapping for the pressed key.
+      let mapping = keyMap[e.key];
+      if (!mapping) {
+        // For keys without a mapping, commit the current syllable and append the key as-is.
+        commitSyllable();
+        composedText += e.key;
+        updateDisplay();
+        return;
+      }
+      e.preventDefault();
+
+      /***** Process Consonant and Vowel Input *****/
+      if (mapping.type === "consonant") {
+        // Case 1: No current initial—start a new syllable.
+        if (!currentSyllable.initial) {
+          currentSyllable.initial = mapping.jamo;
+        }
+        // Case 2: An initial exists but no medial yet.
+        else if (currentSyllable.initial && !currentSyllable.medial) {
+          // (Optionally one could allow double-initials; here we simply replace.)
+          currentSyllable.initial = mapping.jamo;
+        }
+        // Case 3: Already have an initial and a medial.
+        else if (currentSyllable.initial && currentSyllable.medial) {
+          if (!currentSyllable.final) {
+            currentSyllable.final = mapping.jamo;
+          } else {
+            // Try to combine to form a compound final consonant.
+            let currFinal = currentSyllable.final;
+            if (compoundFinals[currFinal] && compoundFinals[currFinal][mapping.jamo]) {
+              currentSyllable.final = compoundFinals[currFinal][mapping.jamo];
+            } else {
+              // If not combinable, commit the current syllable and start a new one.
+              commitSyllable();
+              currentSyllable.initial = mapping.jamo;
+            }
+          }
+        }
+      }
+      else if (mapping.type === "vowel") {
+        // Vowel input when no initial: assume the silent ㅇ.
+        if (!currentSyllable.initial) {
+          currentSyllable.initial = "ㅇ";
+          currentSyllable.medial = mapping.jamo;
+        }
+        // If initial exists but no medial yet, set the vowel.
+        else if (currentSyllable.initial && !currentSyllable.medial) {
+          currentSyllable.medial = mapping.jamo;
+        }
+        // If initial and medial exist and no final, try to form a compound vowel.
+        else if (currentSyllable.initial && currentSyllable.medial && !currentSyllable.final) {
+          let currMedial = currentSyllable.medial;
+          if (compoundVowels[currMedial] && compoundVowels[currMedial][mapping.jamo]) {
+            currentSyllable.medial = compoundVowels[currMedial][mapping.jamo];
+          } else {
+            // Otherwise, commit the syllable and start a new one (with silent ㅇ as initial).
+            commitSyllable();
+            currentSyllable.initial = "ㅇ";
+            currentSyllable.medial = mapping.jamo;
+          }
+        }
+        // If there is a final consonant already, we need to “reallocate” it.
+        else if (currentSyllable.initial && currentSyllable.medial && currentSyllable.final) {
+          let movedConsonant = currentSyllable.final;
+          // For compound finals, try to decompose so that the second part moves.
+          if (movedConsonant.length === 2 && decomposeFinal[movedConsonant]) {
+            let decomposed = decomposeFinal[movedConsonant];
+            currentSyllable.final = decomposed[0];
+            commitSyllable();
+            currentSyllable.initial = decomposed[1];
+            currentSyllable.medial = mapping.jamo;
+          } else {
+            // For a single final consonant, move it to be the new syllable’s initial.
+            currentSyllable.final = "";
+            commitSyllable();
+            currentSyllable.initial = movedConsonant;
+            currentSyllable.medial = mapping.jamo;
+          }
+        }
+      }
+      updateDisplay();
+    });
+  </script>
+</body>
+</html>
